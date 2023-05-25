@@ -1,52 +1,62 @@
 import math
 
-## calculate initial values
 # reserves
-xr = 100000000
+print("Params input:")
+xr = 200000000
 yr = 100000000
-k = xr * yr
 
 # in-hand amounts
-x0 = 10000
-y0 = 0
+x_in = 10000
+y_in = 0
+print("xr = " + str(xr) + ", yr = " + str(yr) + ", x_in = " + str(x_in) + ", y_in = " + str(y_in))
+
+## use 'xy=k'
+print("Find swap solution with 'xy=k':")
+k = xr * yr
 
 # swap from x to y
-delta_x = -xr + math.sqrt(xr * xr - xr * (xr * y0 - yr * x0) / (xr + y0))
-delta_y = yr - k / (xr + delta_x)
+alpha = (y_in + yr) / (x_in + xr)
+beta = alpha
+x0 = (k / beta) ** (1 / 2)
+y0 = k / x0
 
-print("delta_x = " + str(delta_x))
-print(math.fabs((xr + delta_x) * (yr - delta_y) - k) < 1)
-print(math.fabs((xr + delta_x) / (yr - delta_y) - (x0 - delta_x) / (y0 + delta_y)) < 1)
+## the comparison between delta_x and delta_y show a big slippage
+print("x = " + str(x0))
+print("y = " + str(y0))
+assert(math.fabs((x_in - (x0 - xr)) / (y_in + (yr - y0)) - (x0 / y0)) < 10 ** -6)
 
-## calculate approximations
+## use 'xy^3+yx^3=k'
 k = (xr * yr) * (xr * xr + yr * yr)
 
 # derivatives
-def dfdx(x, y):   # df/dx = 3x^2*y + y^3
+def dfdx(x, y):   # df/dx=3x^2*y+y^3
     return 3 * x * x * y + y * y * y
 
-def dfdy(x, y):   # df/dy = x^3 + 3xy^2
+def dfdy(x, y):   # df/dy=x^3+3xy^2
     return x * x * x + 3 * x * y * y
 
+# calculate k
 def f(x, y):
     return x * y * y * y + x * x * x * y
 
-# loop
-x = xr - delta_x
-y = yr
+def get_y(x, y):
+    for i in range(256):
+        y_temp = y
+        y += (k - f(x, y)) / dfdy(x, y)
+        if math.fabs(y - y_temp) < 1:
+            break
+    return y
 
-for i in range(256):
-    y_temp = y
-    y += (k - x * y) / dfdy(x, y)
-    if math.fabs(y - y_temp) < 1:
-        print(i)
-        break
-print("x_start = " + str(x))
-print("y_start = " + str(y))
+y0 = get_y(x0, yr)
+print("But the real 'y' for this `x` should be: " + str(y0))
 
-# for i in range(51200):
-#     x += (k - x * y) / dfdx(x, y)
-#     y += (k - x * y) / dfdy(x, y)
-#     print(x)
-#     print(y)
-#     print(math.fabs((xr + x) * (yr - y) - k) < 1)
+# find the best point on 'xy^3+yx^3=k'
+print("Find swap solution with 'xy^3+yx^3=k':")
+alpha = (y_in + yr) / (x_in + xr)
+beta = alpha + alpha ** 3
+x1 = (k / beta) ** (1 / 4)
+y1 = get_y(x1, yr)
+
+print("x = " + str(x1))
+print("y = " + str(y1))
+assert(math.fabs((x_in - (x1 - xr)) / (y_in + (yr - y1)) - (x1 / y1)) < 10 ** -6)
